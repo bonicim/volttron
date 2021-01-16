@@ -1066,7 +1066,8 @@ def start_volttron_process(opts):
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
                 web_ssl_cert=opts.web_ssl_cert,
-                web_secret_key=opts.web_secret_key
+                web_secret_key=opts.web_secret_key,
+                auto_allow_csr=opts.auto_allow_csr
             ))
 
         ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
@@ -1258,6 +1259,9 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--message-bus', action='store', default='zmq', dest='message_bus',
         help='set message to be used. valid values are zmq and rmq')
+    parser.add_argument(
+        '--auto-allow-csr', default=False, dest='auto_allow_csr',
+        help='Set auto approval of CSR requests')
     agents.add_argument(
         '--volttron-central-rmq-address', default=None,
         help='The AMQP address of a volttron central install instance')
@@ -1361,7 +1365,8 @@ def main(argv=sys.argv):
         web_ssl_cert=None,
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
-        web_secret_key=None
+        web_secret_key=None,
+        auto_allow_csr=False
     )
 
     # Parse and expand options
