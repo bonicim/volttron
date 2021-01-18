@@ -1055,6 +1055,12 @@ def start_volttron_process(opts):
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
+            try:
+                if opts.auto_allow_csr == 'True':
+                    opts.auto_allow_csr = True
+            except AttributeError:
+                opts.auto_allow_csr = None
+
             _log.info("Starting master web service")
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
@@ -1198,6 +1204,12 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument(
+        '--message-bus', action='store', default='zmq', dest='message_bus',
+        help='set message to be used. valid values are zmq and rmq')
+    parser.add_argument(
+        '--auto-allow-csr', action='store_true', dest='auto_allow_csr',
+        help='Set auto approval of CSR requests')
     parser.add_help_argument()
     parser.add_version_argument(version='%(prog)s ' + __version__)
 
@@ -1256,12 +1268,6 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--setup-mode', action='store_true',
         help='Setup mode flag for setting up authorization of external platforms.')
-    parser.add_argument(
-        '--message-bus', action='store', default='zmq', dest='message_bus',
-        help='set message to be used. valid values are zmq and rmq')
-    parser.add_argument(
-        '--auto-allow-csr', default=False, dest='auto_allow_csr',
-        help='Set auto approval of CSR requests')
     agents.add_argument(
         '--volttron-central-rmq-address', default=None,
         help='The AMQP address of a volttron central install instance')
@@ -1366,7 +1372,6 @@ def main(argv=sys.argv):
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
         web_secret_key=None,
-        auto_allow_csr=False
     )
 
     # Parse and expand options
