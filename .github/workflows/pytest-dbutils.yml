@@ -58,7 +58,7 @@ jobs:
         run: |
           pip install wheel
           python bootstrap.py --all  --force
-          apt-get install sqlite3
+          sudo apt-get install sqlite3
 
       - name: Install volttron
         run: |
