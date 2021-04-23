@@ -42,7 +42,6 @@ import os
 
 from datetime import datetime
 
-import pytest
 import json
 import gevent
 import pytest
