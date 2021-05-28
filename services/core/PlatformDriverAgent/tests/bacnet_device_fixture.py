@@ -19,10 +19,94 @@ COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID = 3000107
 GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID = 3000114
 
 
+
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes.consolelogging import ConfigArgumentParser
+
+from bacpypes.core import run, deferred
+from bacpypes.iocb import IOCB
+
+from bacpypes.pdu import Address
+from bacpypes.apdu import SubscribeCOVRequest, SimpleAckPDU
+from bacpypes.errors import ExecutionError
+from bacpypes.service.cov import ChangeOfValueServices
+
 @bacpypes_debugging
 # TODO: Extend class to have more parent classes so that we can add more integration tests; look in BACpypes repo for more sophisticated applications
-class BacnetTestApplication(BIPSimpleApplication):
-    pass
+class SubscribeCOVApplication(BIPSimpleApplication, ChangeOfValueServices):
+    def __init__(self, *args):
+        if _debug: SubscribeCOVApplication._debug("__init__ %r", args)
+        BIPSimpleApplication.__init__(self, *args)
+
+    def send_subscription(self, context):
+        if _debug: SubscribeCOVApplication._debug("send_subscription %r", context)
+
+        # build a request
+        request = SubscribeCOVRequest(
+            subscriberProcessIdentifier=context.subscriberProcessIdentifier,
+            monitoredObjectIdentifier=context.monitoredObjectIdentifier,
+        )
+        request.pduDestination = context.address
+
+        # optional parameters
+        if context.issueConfirmedNotifications is not None:
+            request.issueConfirmedNotifications = context.issueConfirmedNotifications
+        if context.lifetime is not None:
+            request.lifetime = context.lifetime
+
+        # make an IOCB
+        iocb = IOCB(request)
+        if _debug: SubscribeCOVApplication._debug("    - iocb: %r", iocb)
+
+        # callback when it is acknowledged
+        iocb.add_callback(self.subscription_acknowledged)
+
+        # give it to the application
+        this_application.request_io(iocb)
+
+    def subscription_acknowledged(self, iocb):
+        if _debug: SubscribeCOVApplication._debug("subscription_acknowledged %r", iocb)
+
+        # do something for success
+        if iocb.ioResponse:
+            if _debug: SubscribeCOVApplication._debug("    - response: %r", iocb.ioResponse)
+
+        # do something for error/reject/abort
+        if iocb.ioError:
+            if _debug: SubscribeCOVApplication._debug("    - error: %r", iocb.ioError)
+
+    def do_ConfirmedCOVNotificationRequest(self, apdu):
+        if _debug: SubscribeCOVApplication._debug("do_ConfirmedCOVNotificationRequest %r", apdu)
+
+        # look up the process identifier
+        context = subscription_contexts.get(apdu.subscriberProcessIdentifier, None)
+        if not context or apdu.pduSource != context.address:
+            if _debug: SubscribeCOVApplication._debug("    - no context")
+
+            # this is turned into an ErrorPDU and sent back to the client
+            raise ExecutionError('services', 'unknownSubscription')
+
+        # now tell the context object
+        context.cov_notification(apdu)
+
+        # success
+        response = SimpleAckPDU(context=apdu)
+        if _debug: SubscribeCOVApplication._debug("    - simple_ack: %r", response)
+
+        # return the result
+        self.response(response)
+
+    def do_UnconfirmedCOVNotificationRequest(self, apdu):
+        if _debug: SubscribeCOVApplication._debug("do_UnconfirmedCOVNotificationRequest %r", apdu)
+
+        # look up the process identifier
+        context = subscription_contexts.get(apdu.subscriberProcessIdentifier, None)
+        if not context or apdu.pduSource != context.address:
+            if _debug: SubscribeCOVApplication._debug("    - no context")
+            return
+
+        # now tell the context object
+        context.cov_notification(apdu)
 
 
 @bacpypes_debugging
@@ -79,7 +163,7 @@ def main():
 
     # add device to test application
     address = BACNET_DEVICE_IP_ADDR
-    testapp = BacnetTestApplication(this_device, address)
+    testapp = SubscribeCOVApplication(this_device, address)
 
     # the objectIdentifier's object instance (i.e. second value in tuple) should match the value in the corresponding Index column of the BACnet Driver's registry config
     test_av = AnalogOutputObject(

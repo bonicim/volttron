@@ -53,10 +53,38 @@ def test_set_and_get(
 
 
 # TODO: add test for "scrape_all"
-# p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
+def test_scrape_all(
+    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
+):
+    query_agent.poll_callback.reset_mock()
+    assert volttron_instance.is_agent_running(bacnet_proxy_agent)
+
+    register_values = {
+        "CoolingValveOutputCommand": 42.42,
+        "GeneralExhaustFanCommand": 1,
+    }
+
+    p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
+    print(p)
+
 
 # TODO: add another test on COV
 # have a COV flag column on registry config and set to true
+def test_create_cov_subscription(
+    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
+):
+    query_agent.poll_callback.reset_mock()
+    assert volttron_instance.is_agent_running(bacnet_proxy_agent)
+
+    register_values = {
+        "CoolingValveOutputCommand": 42.42,
+        "GeneralExhaustFanCommand": 1,
+    }
+    for k, v in register_values.items():
+        logger.info(f"Setting and getting point: {k} with value: {v}")
+        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
+        updated_v = async_res.get()
+        logger.info(f"Updated value: {updated_v}")
 
 
 @pytest.fixture(scope="module")
@@ -141,9 +169,10 @@ def platform_driver(volttron_instance, query_agent):
         driver_config,
     ).get(timeout=3)
 
-    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes,COV Flag
     Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
     Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
+
 
     query_agent.vip.rpc.call(
         CONFIGURATION_STORE,

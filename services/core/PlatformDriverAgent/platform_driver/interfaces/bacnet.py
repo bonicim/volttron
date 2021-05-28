@@ -118,6 +118,7 @@ class Interface(BaseInterface):
             self.schedule_ping()
 
     def get_point(self, point_name, get_priority_array=False):
+        _log.info("GERE")
         register = self.get_register_by_name(point_name)
         property_name = "priorityArray" if get_priority_array else register.property
         register_index = None if get_priority_array else register.index
@@ -147,6 +148,7 @@ class Interface(BaseInterface):
 
     def scrape_all(self):
         # TODO: support reading from an array.
+        _log.info("HERE")
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
@@ -156,6 +158,9 @@ class Interface(BaseInterface):
                                               register.instance_number,
                                               register.property,
                                               register.index]
+
+        _log.info(f"XXXX {read_registers}")
+        _log.info(f"XXXX {write_registers}")
 
         while True:
             try:
@@ -215,7 +220,6 @@ class Interface(BaseInterface):
 
             # checks if the point is flagged for change of value
             is_cov = regDef.get("COV Flag", 'false').lower() == "true"
-
             index = int(regDef.get('Index'))
 
             list_index = regDef.get('Array Index', '')
