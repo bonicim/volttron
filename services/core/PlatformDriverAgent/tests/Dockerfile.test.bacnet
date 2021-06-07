@@ -1,5 +1,9 @@
-FROM amd64/ubuntu:focal
+ARG image_user=amd64
+ARG image_repo=debian
+ARG image_tag=buster
 
+FROM ${image_user}/${image_repo}:${image_tag} as volttron_base
+ENV HTTPS_PROXY=http://proxy01.pnl.gov:3128
 USER root
 RUN set -eux; apt-get update --fix-missing; apt-get install -y --no-install-recommends \
     python3-dev \
