@@ -47,6 +47,9 @@ from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub
 from volttron.platform.vip.agent.subsystems.query import Query
 
+import asyncio
+from aiofile import AIOFile, Reader, Writer
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.3'
@@ -97,15 +100,33 @@ class ListenerAgent(Agent):
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
 
+    async def foo(self):
+        async with AIOFile("/tmp/hello.txt", 'w+') as afp:
+            writer = Writer(afp)
+            reader = Reader(afp, chunk_size=8)
+
+            await writer("Hello")
+            await writer(" ")
+            await writer("World")
+            await afp.fsync()
+
+            async for chunk in reader:
+                print(chunk)
+
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        _log.debug("VERSION IS: {}".format(self.core.version()))
-        if self._heartbeat_period != 0:
-            _log.debug(f"Heartbeat starting for {self.core.identity}, published every {self._heartbeat_period}s")
-            self.vip.heartbeat.start_with_period(self._heartbeat_period)
-            self.vip.health.set_status(STATUS_GOOD, self._message)
-        query = Query(self.core)
-        _log.info('query: %r', query.query('serverkey').get())
+        _log.debug("doing asyncio stuff...")
+        loop = asyncio.get_event_loop()
+
+        loop.run_until_complete(self.foo())
+        loop.run_forever()
+        # _log.debug("VERSION IS: {}".format(self.core.version()))
+        # if self._heartbeat_period != 0:
+        #     _log.debug(f"Heartbeat starting for {self.core.identity}, published every {self._heartbeat_period}s")
+        #     self.vip.heartbeat.start_with_period(self._heartbeat_period)
+        #     self.vip.health.set_status(STATUS_GOOD, self._message)
+        # query = Query(self.core)
+        # _log.info('query: %r', query.query('serverkey').get())
 
     @PubSub.subscribe('pubsub', '', all_platforms=True)
     def on_match(self, peer, sender, bus, topic, headers, message):

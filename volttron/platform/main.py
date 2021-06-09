@@ -38,7 +38,6 @@
 
 
 import argparse
-import errno
 import logging
 from logging import handlers
 import logging.config
@@ -56,14 +55,18 @@ import uuid
 import gevent
 import gevent.monkey
 
+gevent.monkey.patch_socket()
+gevent.monkey.patch_ssl()
+
+import asyncio
+import asyncio_gevent
+asyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())
+
 from volttron.platform.vip.healthservice import HealthService
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
-gevent.monkey.patch_socket()
-gevent.monkey.patch_ssl()
-from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError
 from zmq import green
@@ -78,8 +81,6 @@ from volttron.platform import jsonapi
 from . import aip
 from . import __version__
 from . import config
-from . import vip
-from .vip.agent import Agent, Core
 from .vip.router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
@@ -94,7 +95,6 @@ from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
     KEY_DISCOVERY, PROXY_ROUTER
-from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
