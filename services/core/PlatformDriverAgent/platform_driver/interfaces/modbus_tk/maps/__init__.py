@@ -303,6 +303,7 @@ class Map(object):
         modbus_client_class = type(self._name.replace(' ', '_'),
                                    (Client,),
                                    class_attrs)
+
         return modbus_client_class
 
 

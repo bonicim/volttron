@@ -115,6 +115,7 @@ class ModbusBitRegister(ModbusRegisterBase):
             return response.value
         return None
 
+
 class ModbusByteRegister(ModbusRegisterBase):
     def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description='',
                  slave_id=0):

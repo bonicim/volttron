@@ -37,7 +37,7 @@
 # }}}
 
 
-from .helpers import str2bool
+from helpers import str2bool
 
 import cmd
 import yaml
@@ -798,7 +798,7 @@ class ConfigCmd (cmd.Cmd):
         csv_map = self.get_existed_file(self._directories['csv_dir'], csv_map)
         if csv_map:
             self._sh('volttron-ctl config store platform.driver {1} {0}/{1} --csv'.format(csv_dir, csv_map))
-            self.list_volttron_config("Load successful!")
+            self.list_volttron_config("Load successfulf!")
         else:
             print('Please add csv file {1} to the directory {0}/{1} and redo load_volttron'.format(csv_dir, csv_map))
 

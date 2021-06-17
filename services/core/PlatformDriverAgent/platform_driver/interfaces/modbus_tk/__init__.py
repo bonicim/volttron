@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 from gevent import monkey
 from volttron.platform.agent import utils
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
@@ -44,7 +43,6 @@ from platform_driver.interfaces.modbus_tk.maps import Map
 
 import logging
 import struct
-import re
 
 monkey.patch_socket()
 
@@ -53,25 +51,6 @@ modbus_logger.setLevel(logging.WARNING)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-
-parity_map = dict(
-    none='N',
-    even='E',
-    odd='O',
-    mark='M',
-    space='S'
-)
-
-config_keys = ["name", "device_type", "device_address", "port", "slave_id", "baudrate", "bytesize", "parity",
-               "stopbits", "xonxoff", "addressing", "endian", "write_multiple_registers", "register_map"]
-
-register_map_columns = ["register name", "address", "type", "units", "writable", "default value", "transform", "table",
-                        "mixed endian", "description"]
-
-
-class ModbusInterfaceException(Exception):
-    pass
 
 
 class ModbusTKRegister(BaseRegister):
@@ -86,11 +65,16 @@ class ModbusTKRegister(BaseRegister):
     :type default_value: parse str to the register type
     :type field: Field
     """
-    def __init__(self, point_name, default_value, field, description=''):
-        datatype = 'bit' if field.type == helpers.BOOL else 'byte'
+
+    def __init__(self, point_name, default_value, field, description=""):
+        datatype = "bit" if field.type == helpers.BOOL else "byte"
 
         super(ModbusTKRegister, self).__init__(
-            datatype, not field.writable, point_name, field.units, description=description
+            datatype,
+            not field.writable,
+            point_name,
+            field.units,
+            description=description,
         )
 
         self.name = field.name
@@ -108,17 +92,22 @@ class ModbusTKRegister(BaseRegister):
         :return: python type
         """
         # Python 2.7 strings are byte arrays, this no longer works for 3.x
-        if isinstance(datatype, tuple) and datatype[0] == 's':
+        if isinstance(datatype, tuple) and datatype[0] == "s":
             return str
         try:
             parse_struct = struct.Struct(datatype)
         except TypeError:
             parse_struct = struct.Struct(datatype[0])
 
-        struct_types = [type(x) for x in parse_struct.unpack(('\x00' * parse_struct.size).encode('utf-8'))]
+        struct_types = [
+            type(x)
+            for x in parse_struct.unpack(("\x00" * parse_struct.size).encode("utf-8"))
+        ]
 
         if len(struct_types) != 1:
-            raise ValueError("Invalid length Modbus Register for point {}".format(self.point_name))
+            raise ValueError(
+                "Invalid length Modbus Register for point {}".format(self.point_name)
+            )
         return struct_types[0]
 
     def get_default_value(self, datatype, str_value):
@@ -142,7 +131,11 @@ class ModbusTKRegister(BaseRegister):
             elif python_type is str:
                 return str_value
             else:
-                raise ValueError("Invalid data type for point {}: {}".format(self.point_name, python_type))
+                raise ValueError(
+                    "Invalid data type for point {}: {}".format(
+                        self.point_name, python_type
+                    )
+                )
         else:
             return None
 
@@ -155,7 +148,7 @@ class ModbusTKRegister(BaseRegister):
         :type modbus_client: Client
         """
         state = getattr(modbus_client, self.name)
-        return state.decode('utf-8') if isinstance(state, bytes) else state
+        return state.decode("utf-8") if isinstance(state, bytes) else state
 
     def set_state(self, modbus_client, value):
         """
@@ -175,19 +168,181 @@ class ModbusTKRegister(BaseRegister):
 
 class Interface(BasicRevert, BaseInterface):
     """
-        Create an interface of the device follows the standard form of BaseInterface
-
-    :param name_map: dictionary mapping the register name to point name
-    :param modbus_client: modbus tk client parsed from configure
-
-    :type name_map: dictionary
-    :type modbus_client: Client
+    Interface implementation of the ModbusTK Driver
     """
 
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
-        self.name_map = dict()
+        self.name_map = dict()  # dictionary mapping the register name to point name
         self.modbus_client = None
+        self.name = None  # name of the driver
+
+    def configure(self, config: dict, registry_config: list):
+        """
+            Parse driver and csv config to define client transport, add registers to ModbusTKRegister,
+            and set default values for revert reading
+
+        :param config: dictionary of device configure
+        :param registry_config: the list of all register dictionary parsed from the csv file
+
+        :type config: dictionary
+        :type registry_config: list
+        """
+        self.name = config.get("name", "UNKNOWN")
+
+        self.check_ignored_config_keys(config)
+
+        # Modbus client must be created before inserting registers into driver, which is done in self.parse_config()
+        self.modbus_client = self.get_modubus_client(config, registry_config)
+
+        self.parse_config(registry_config)
+
+        _log.debug(f"Completed configuration for ModbusTK Driver: {self.name}")
+
+    @classmethod
+    def config_keys(cls):
+        return [
+            "name",
+            "device_type",
+            "device_address",
+            "port",
+            "slave_id",
+            "baudrate",
+            "bytesize",
+            "parity",
+            "stopbits",
+            "xonxoff",
+            "addressing",
+            "endian",
+            "write_multiple_registers",
+            "register_map",
+        ]
+
+    def check_ignored_config_keys(self, config):
+        ignored_config_keys = [k for k in config.keys() if k not in self.config_keys()]
+        if ignored_config_keys:
+            _log.warning(f"{self.name}, Ignored config : {ignored_config_keys}")
+
+    @classmethod
+    def parity(cls):
+        return dict(none="N", even="E", odd="O", mark="M", space="S")
+
+    def get_modubus_client(self, config, registry_config):
+        # Parsing driver configurations from 'config'
+
+        # Required driver configurations
+        device_address = config["device_address"]
+
+        # Optional driver configurations
+        # 'name' has already been parsed in this Driver's constructor (see __init__) and added as a class attribute
+
+        port = config.get("port", 0)
+        slave_address = config.get("slave_id", 1)
+        baudrate = config.get("baudrate", 9600)
+        bytesize = config.get("bytesize", 8)  # valid values: 5, 6, 7, 8
+        parity = self.parity()[config.get("parity", "none")]
+        stopbits = config.get("stopbits", 1)  # valid values: 1, 1.5, 2
+        xonxoff = config.get("xonxoff", 0)  # boolean
+        addressing = config.get("addressing", helpers.OFFSET).lower()  # valid values: offset, offset_plus, or address
+        endian = config.get("endian", "big")  # valid values: big, small
+
+        x = config["write_multiple_registers"]
+        _log.debug(f"write_multiple_registers config: {x}. The type is {type(x)}")
+        write_single_values = (config.get("write_multiple_registers", True))
+
+        modbus_client_class = Map(
+            name=self.name,
+            addressing=addressing,
+            endian=endian,
+            registry_config_lst=registry_config,
+        ).get_class()
+
+        modbus_client = modbus_client_class(
+            device_address=device_address,
+            port=port,
+            slave_address=slave_address,
+            write_single_values=write_single_values,
+        )
+
+        # Set modbus client transport based on device configure
+        if port:
+            _log.debug(f"Setting Modbus Client to TCP on port: {port}")
+            modbus_client.set_transport_tcp(hostname=device_address, port=port)
+        else:
+            _log.debug(f"Setting ModbusClient to RTU transport on port {port} ")
+            modbus_client.set_transport_rtu(
+                device=device_address,
+                baudrate=baudrate,
+                bytesize=bytesize,
+                parity=parity,
+                stopbits=stopbits,
+                xonxoff=xonxoff,
+            )
+        _log.info("Created ModbusClient.")
+
+        return modbus_client
+
+    def parse_config(self, registry_config: list):
+        if not registry_config:
+            _log.warning(f"Registry config is empty. This ModbusTK Driver for {self.name} will have no registers to read or write to.")
+            return
+
+        self.check_ignored_registry_config_keys(registry_config)
+        registry_config = self.convert_modbus_registry(registry_config)
+
+        for reg_dict in registry_config:
+            register = ModbusTKRegister(
+                reg_dict.get("Volttron Point Name"),
+                reg_dict.get("Default Value", None),
+                self.modbus_client.field_by_name(reg_dict.get("Register Name")),
+            )
+            self.insert_register(register)
+
+            if not register.read_only and register.default_value:
+                point_name = register.point_name
+                default_value = register.default_value
+                _log.debug(f"Setting default on register: {point_name, default_value}")
+                self.set_default(point_name, default_value)
+
+        _log.info("Finished setting up ModbusTK registers.")
+
+    def convert_modbus_registry(self, registry_config: list):
+        """Convert registry_config to new modbus_tk registry format if registry_config is in modbus csv format; otherwise return origin registry_config"""
+        if registry_config and "Point Address" in registry_config[0]:
+            _log.info("Converting registry config to new ModbusTK format.")
+            new_registry_config_lst = []
+            for reg_dict in registry_config:
+                point_name = reg_dict.get("Volttron Point Name")
+                register_name = (
+                    reg_dict.get("Reference Point Name", point_name)
+                    .replace(" ", "_")
+                    .lower()
+                )
+                address = reg_dict.get("Point Address")
+                datatype = reg_dict["Modbus Register"]
+
+                unit = reg_dict.get("Units")
+                writable = reg_dict.get("Writable")
+                default_value = reg_dict.get("Default Value", None)
+                description = reg_dict.get("Notes", "")
+                mixed_endian = reg_dict.get("Mixed Endian", "False").lower()
+
+                new_registry_config_lst.append(
+                    {
+                        "Volttron Point Name": point_name,
+                        "Register Name": register_name,
+                        "Address": address,
+                        "Type": datatype,
+                        "Units": unit,
+                        "Writable": writable,
+                        "Default Value": default_value,
+                        "Mixed Endian": mixed_endian,
+                        "Description": description,
+                    }
+                )
+
+            return new_registry_config_lst
+        return registry_config
 
     def insert_register(self, register):
         """
@@ -200,150 +355,33 @@ class Interface(BasicRevert, BaseInterface):
         super(Interface, self).insert_register(register)
         self.name_map[register.name] = register.point_name
 
-    def parse_registry_config(self, old_registry_config_lst):
-        """
-            Convert original modbus csv format to the new modbus_tk registry_config_lst
+    @classmethod
+    def registry_columns(cls):
+        return [
+            "Volttron Point Name",
+            "Register Name",
+            "Address",
+            "Type",
+            "Units",
+            "Writable",
+            "Default Value",
+            "Transform",
+            "Table",
+            "Mixed Endian",
+            "Description",
+        ]
 
-        :param old_registry_config_lst: list of all register dictionaries in old volttron csv format
+    def check_ignored_registry_config_keys(self, registry_config: list):
+        ignored_registry_columns = set()
+        for c in registry_config:
+            for k in c.keys():
+                if k not in self.registry_columns():
+                    ignored_registry_columns.add(k)
 
-        :type old_registry_config_lst: list
-        """
-        new_registry_config_lst = []
-        for reg_dict in old_registry_config_lst:
-            point_name = reg_dict.get('volttron point name')
-            register_name = reg_dict.get('reference point name', point_name).replace(" ", "_").lower()
-            address = reg_dict.get('point address')
-            datatype = reg_dict['modbus register']
-
-            unit = reg_dict.get('units')
-            writable = reg_dict.get('writable')
-            default_value = reg_dict.get('default value', None)
-            description = reg_dict.get('notes', '')
-            mixed_endian = reg_dict.get('mixed endian', 'false').lower()
-
-            new_registry_config_lst.append({'volttron point name': point_name,
-                                            'register name': register_name,
-                                            'address': address,
-                                            'type': datatype,
-                                            'units': unit,
-                                            'writable': writable,
-                                            'default value': default_value,
-                                            'mixed endian': mixed_endian,
-                                            'description': description})
-
-        return new_registry_config_lst
-
-    def configure(self, config_dict, registry_config_lst):
-        """
-            Parse driver and csv config to define client transport, add registers to ModbusTKRegister,
-            and set default values for revert reading
-
-        :param config_dict: dictionary of device configure
-        :param registry_config_lst: the list of all register dictionary parsed from the csv file
-
-        :type config_dict: dictionary
-        :type registry_config_lst: list
-        """
-
-        # Convert keys to lowercase
-        config_dict = dict((k.lower(), v) for k, v in config_dict.items())
-        registry_config_lst = [dict((k.lower(), v) for k, v in i.items()) for i in registry_config_lst]
-
-        # Log warning if registry_config_lst is empty
-        if not registry_config_lst:
-            _log.warning("Registry config csv is empty.")
-
-        name = config_dict.get('name', 'UNKOWN')
-        device_address = config_dict['device_address']
-        port = config_dict.get('port', None)
-        slave_address = config_dict.get('slave_id', 1)
-        baudrate = config_dict.get('baudrate', 9600)
-        bytesize = config_dict.get('bytesize', 8)
-        parity = parity_map[config_dict.get('parity', 'none')]
-        stopbits = config_dict.get('stopbits', 1)
-        xonxoff = config_dict.get('xonxoff', 0)
-        addressing = config_dict.get('addressing', helpers.OFFSET).lower()
-        endian = config_dict.get('endian', 'big')
-        write_single_values = not helpers.str2bool(str(config_dict.get('write_multiple_registers', "True")))
-
-        # Convert original modbus csv config format to the new modbus_tk registry_config_lst
-        if registry_config_lst and 'point address' in registry_config_lst[0]:
-            registry_config_lst = self.parse_registry_config(registry_config_lst)
-
-        # Get register map and convert everything to lowercase
-        register_map = dict((reg['register name'], reg) for reg in
-                            [dict((k.lower(), v) for k, v in i.items()) for i in
-                             config_dict.get('register_map', registry_config_lst)])
-
-        # Log warning for ignored config fields
-        ignored_config_keys = [k for k in config_dict.keys() if k not in config_keys]
-        if ignored_config_keys:
-            _log.warning("%s: Ignored config fields: %s", name, ','.join(ignored_config_keys))
-
-        try:
-            # Log warning for ignored register map csv column
-            ignored_register_map_csv_columns = [c for c in list(register_map.values())[0].keys() if c not in register_map_columns]
-            if ignored_register_map_csv_columns:
-                _log.warning("%s: Ignored register map csv columns: %s", name, ','.join(ignored_register_map_csv_columns))
-        except IndexError:
-            # Log warning if register_map is empty
-            if not register_map:
-                _log.warning("Register map csv is empty.")
-
-        # Get the list of selected register dictionary based on Register Name from registry_config_lst
-        selected_registry_config_lst = list()
-        for reg_dict in registry_config_lst:
-            reg_name = reg_dict.get('register name')
-            try:
-                register_map[reg_name].update(reg_dict)
-                selected_registry_config_lst.append(register_map[reg_name])
-            except KeyError:
-                _log.warning("No register name matching found: %s", reg_name)
-
-        # Log warning if selected_registry_config_lst is empty
-        if not selected_registry_config_lst:
-            _log.warning("The selected registry config list is empty.")
-
-        # Generate the subclass of Client from the device config and register list
-        modbus_client_class = Map(
-            name=name,
-            addressing=addressing,
-            endian=endian,
-            registry_config_lst=selected_registry_config_lst
-        ).get_class()
-
-        self.modbus_client = modbus_client_class(device_address=device_address,
-                                                 port=port,
-                                                 slave_address=slave_address,
-                                                 write_single_values=write_single_values)
-
-        # Set modbus client transport based on device configure
-        if port:
-            self.modbus_client.set_transport_tcp(
-                hostname=device_address,
-                port=port
+        if ignored_registry_columns:
+            _log.warning(
+                f"{self.name}, Ignored registry config columns: {ignored_registry_columns}"
             )
-        else:
-            self.modbus_client.set_transport_rtu(
-                device=device_address,
-                baudrate=baudrate,
-                bytesize=bytesize,
-                parity=parity,
-                stopbits=stopbits,
-                xonxoff=xonxoff
-            )
-
-        # Insert driver/interface registers
-        for reg_dict in selected_registry_config_lst:
-            register = ModbusTKRegister(
-                reg_dict.get('volttron point name'),
-                reg_dict.get('default value', None),
-                self.modbus_client.field_by_name(reg_dict.get('register name'))
-            )
-            self.insert_register(register)
-            if not register.read_only and register.default_value:
-                self.set_default(register.point_name, register.default_value)
-
 
     def get_point(self, point_name):
         """
@@ -365,10 +403,16 @@ class Interface(BasicRevert, BaseInterface):
         :type point_name: str
         :type value: same type as register type
         """
-        return self.get_register_by_name(point_name).set_state(self.modbus_client, value)
+        return self.get_register_by_name(point_name).set_state(
+            self.modbus_client, value
+        )
 
     def _scrape_all(self):
-        """Get a dictionary mapping point name to values of all defined registers
-        """
-        return dict((self.name_map[field.name], value.decode('utf-8') if isinstance(value, bytes) else value) for
-                    field, value, timestamp in self.modbus_client.dump_all())
+        """Get a dictionary mapping point name to values of all defined registers"""
+        return dict(
+            (
+                self.name_map[field.name],
+                value.decode("utf-8") if isinstance(value, bytes) else value,
+            )
+            for field, value, timestamp in self.modbus_client.dump_all()
+        )

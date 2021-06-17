@@ -83,8 +83,6 @@ but only **device_address** is required:
         - If write_multiple_registers is set to false, only register types unsigned short (uint16) and boolean (bool)
           are supported. The exception raised during the configure process.
 
-    - ``register_map`` (Optional) - Register map csv of unchanged register variables. Defaults to registry_config csv.
-
 Sample Modbus-TK configuration files are checked into the VOLTTRON repository in
 ``services/core/PlatformDriverAgent/platform_driver/interfaces/modbus_tk/maps``.
 
@@ -148,9 +146,9 @@ Here is a sample RTU Modbus-TK device configuration, with completely-specified s
     }
 
 
-.. _Modbus-TK-Register-Map:
+.. _Modbus-TK-Registry-Config:
 
-Modbus-TK Register Map CSV File
+Modbus-TK Registry Configuration File
 ===============================
 
 Modbus TK requires an additional registry configuration file compared to the paradigm of most other drivers.  The
@@ -158,14 +156,20 @@ registry map file is an analogue to the typical registry configuration file.  Th
 :ref:`registry configuration file <Modbus-TK-Registry-Config>` is a simple file which maps device point names to user
 specified point names.
 
-The registry map file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
-Each row configures a register definition on the device.
+The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on a device.
 
+The following columns are required for each row:
+    - ``Volttron Point Name`` (Required) - The name by which the platform and agents refer to the point.  For instance,
+      if the Volttron Point Name is HeatCall1, then an agent would use ``my_campus/building2/hvac1/HeatCall1`` to refer
+      to the point when using the RPC interface of the actuator agent.
     - ``Register Name`` (Required) - The field name in the modbus client. This field is distinct and unchangeable.
     - ``Address`` (Required) - The point's modbus address. The ``addressing`` option in the driver configuration
       controls whether this is interpreted as an exact address or an offset.
     - ``Type`` (Required) - The point's data type: bool, string[length], float, int16, int32, int64, uint16,
       uint32, or uint64.
+
+The following columns are optional:
+
     - ``Units`` (Optional) - Used for metadata when creating point information on a historian. Default is an
       empty string.
     - ``Writable`` (Optional) - TRUE/FALSE. Only points for which Writable=TRUE can be updated by a VOLTTRON agent.
@@ -192,12 +196,10 @@ Each row configures a register definition on the device.
       Defaults to FALSE.
     - ``Description`` (Optional) - Additional information about the point. Default is an empty string.
 
-Any additional columns are ignored.
+Any additional columns are ignored. It is common practice to include a Point Name or Reference Point Name to include
+the device documentation’s name for the point and Notes and Unit Details for additional information about a point.
 
-Sample Modbus-TK registry map CSV files are checked into the VOLTTRON repository in
-``services/core/PlatformDriverAgent/platform_driver/interfaces/modbus_tk/maps``.
-
-Here is a sample Modbus-TK registry map:
+The following is an example of a Modbus-TK registry configuration file:
 
 .. csv-table::
         :header: Register Name,Address,Type,Units,Writable,Default Value,Transform,Table
@@ -213,39 +215,12 @@ Here is a sample Modbus-TK registry map:
         sample_str,17,string[12],None,TRUE,hello world!,,analog_output_holding_registers
 
 
-.. _Modbus-TK-Registry-Config:
+A sample Modbus-TK registry configuration file can be found in the VOLTTRON repository in the folder:
+``examples/configurations/drivers``.
 
-Modbus-TK Registry Configuration
-================================
 
-The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
-Each row configures a point on the device.
 
-    - ``Volttron Point Name`` (Required) - The name by which the platform and agents refer to the point.  For instance,
-      if the Volttron Point Name is HeatCall1, then an agent would use ``my_campus/building2/hvac1/HeatCall1`` to refer
-      to the point when using the RPC interface of the actuator agent.
-    - ``Register Name`` (Required) - The field name in the modbus client.  It must be matched with the field name from
-      ``register_map``.
 
-Any additional columns will override the existed fields from ``register_map``.
-
-Sample Modbus-TK registry CSV files are checked into the VOLTTRON repository
-in ``services/core/PlatformDriverAgent/platform_driver/interfaces/modbus_tk/maps``.
-
-Here is a sample Modbus-TK registry configuration with defined ``register_map``:
-
-.. csv-table::
-        :header: Volttron Point Name,Register Name
-
-        unsigned short,unsigned_short
-        unsigned int,unsigned_int
-        unsigned long,unsigned_long
-        sample short,sample_short
-        sample int,sample_int
-        sample float,sample_float
-        sample long,sample_long
-        sample bool,sample_bool
-        sample str,sample_str
 
 
 .. _Modbus-TK-Maps:
