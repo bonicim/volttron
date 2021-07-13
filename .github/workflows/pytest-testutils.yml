@@ -24,12 +24,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Install Volttron
-        id: install_volttron
-        uses: bonicim/install-volttron
-      - name: Run Volttron Tests
-        id: run_volttron_tests
-        uses: bonicim/run-tests-volttron
+#      - name: Install Volttron
+#        id: install_volttron
+#        uses: bonicim/install-volttron
+#      - name: Run Volttron Tests
+#        id: run_volttron_tests
+#        uses: bonicim/run-tests-volttron
 
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
