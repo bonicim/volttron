@@ -24,6 +24,13 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Install Volttron
+        id: install_volttron
+        uses: bonicim/install-volttron
+      - name: Run Volttron Tests
+        id: run_volttron_tests
+        uses: bonicim/run-tests-volttron
+
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
 
@@ -67,22 +74,27 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: bonicim/setup-erlang-volttron@v3
+        uses: bonicim/run-tests-volttron@v1
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
+
           #        run: |
 #          source env/bin/activate
 #          pip install -e .
 #          pytest volttrontesting/testutils -rf -o junit_family=xunit2 --junitxml=output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
       # Archive the results from the pytest to storage.
-      - name: Archive test results
-        uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: pytest-report
-          path: output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+#      - name: Archive test results
+#        uses: actions/upload-artifact@v2
+#        if: always()
+#        with:
+#          name: pytest-report
+#          path: output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+
+
+
+
 
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
