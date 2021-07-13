@@ -73,7 +73,7 @@ jobs:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
 
-       Archive the results from the pytest to storage.
+#       Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v2
         if: always()
