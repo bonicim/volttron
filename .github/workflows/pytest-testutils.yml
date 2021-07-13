@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - id: foo
-        uses: actions/setup-erlang-volttron@v1
+        uses: bonicim/setup-erlang-volttron@v1
         with:
           who-to-greet: 'Mona the Octocat'
 
