@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 BACNET_DEVICE_TOPIC = "devices/bacnet"
 
+# def test_foo(bacnet_device, bacnet_proxy_agent)
+
 
 def test_set_and_get(
     bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent
@@ -51,7 +53,7 @@ def test_set_and_get(
             assert updated_v == v
 
 
-@pytest.mark.skip(reason="still WIP")
+@pytest.mark.skip(reason="error: revert_all not implemented?")
 def test_revert_all(bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent):
     cooling_valve = "CoolingValveOutputCommand"
     general_exhaust = "GeneralExhaustFanCommand"
@@ -89,15 +91,44 @@ def test_revert_all(bacnet_device, bacnet_proxy_agent, config_store, bacnet_test
 
 
 # TODO: add test for "scrape_all"
-# p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
+def test_scrape_all(
+    bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent
+):
+    # register_values = {
+    #     "CoolingValveOutputCommand": 42.42,
+    #     "GeneralExhaustFanCommand": 1,
+    # }
+    res = bacnet_test_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
+    print(res)
+    # for k, v in register_values.items():
+    #     logger.info(f"Setting and getting point: {k} with value: {v}")
+    #     bacnet_test_agent.vip.rpc.call(
+    #         PLATFORM_DRIVER, "set_point", "bacnet", k, v
+    #     ).get(timeout=10)
+    #     async_res = bacnet_test_agent.vip.rpc.call(
+    #         PLATFORM_DRIVER, "get_point", "bacnet", k
+    #     )
+    #     updated_v = async_res.get()
+    #     logger.info(f"Updated value: {updated_v}")
+    #
+    #     if isinstance(updated_v, float):
+    #         assert math.isclose(v, updated_v, rel_tol=0.05)
+    #     else:
+    #         assert updated_v == v
+    #
 
 # TODO: add another test on COV
 # have a COV flag column on registry config and set to true
 
 
+def test_fod(bacnet_device):
+    time.sleep(60000)
+
 @pytest.fixture(scope="module")
 def bacnet_proxy_agent(volttron_instance):
     device_address = socket.gethostbyname(socket.gethostname() + ".local")
+    print(f"this is IT: {device_address}")
+    exit(0)
     bacnet_proxy_agent_config = {
         "device_address": device_address,
         # below are optional; values are set to show configuration options; values use the default values
@@ -198,6 +229,7 @@ def config_store(config_store_connection):
         Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
         Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
 
+    # the associated bacnet driver config that uses this registry is stored by the bacnet_test_agent fixture
     config_store_connection.call(
         "manage_store",
         PLATFORM_DRIVER,
@@ -205,7 +237,7 @@ def config_store(config_store_connection):
         registry_string,
         config_type="csv",
     )
-    # the associated bacnet driver config that uses this registry is stored by the bacnet_test_agent fixture
+
     yield config_store_connection
 
     print("Wiping out store.")
