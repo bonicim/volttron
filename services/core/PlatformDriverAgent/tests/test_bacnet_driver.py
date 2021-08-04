@@ -1,11 +1,7 @@
 import logging
 import pytest
 import gevent
-import math
 import socket
-import docker
-import time
-import os
 
 from mock import MagicMock
 from volttron.platform.agent.known_identities import (
@@ -14,12 +10,6 @@ from volttron.platform.agent.known_identities import (
 )
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
-from bacnet_device_fixture import (
-    BACNET_DEVICE_IP_ADDR,
-    BACNET_SUBNET,
-    COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID,
-    GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID,
-)
 
 utils.setup_logging()
 logger = logging.getLogger(__name__)
@@ -174,58 +164,3 @@ def config_store(config_store_connection):
     config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
     gevent.sleep(0.1)
 
-
-def test_docker(bacnet_device):
-    print("Done with docker setup")
-    time.sleep(600)
-
-
-# Docker container hosting a BACnet device, in progress
-@pytest.fixture()
-def bacnet_device():
-    client = docker.from_env()
-    image_name = "bacnet_device"
-    network_name = "bacnet_network"
-
-    # build the test image
-    client.images.build(
-        path=os.getcwd(),
-        nocache=True,
-        rm=True,
-        forcerm=True,
-        dockerfile="Dockerfile.test.bacnet",
-        tag=image_name,
-    )
-
-    # create a custom docker network
-    ipam_pool = docker.types.IPAMPool(subnet=BACNET_SUBNET)
-    ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-    bacnet_network = client.networks.create(
-        network_name, driver="bridge", ipam=ipam_config
-    )
-
-    # run the container and assign it a static IP from custom docker network
-    bacnet_container = client.containers.create(
-        image_name,
-        name="bacnet_test",
-        detach=True,
-    )
-    client.networks.get(network_name).connect(
-        bacnet_container, ipv4_address=BACNET_DEVICE_IP_ADDR
-    )
-    bacnet_container.start()
-
-    error_time = time.time() + 10
-    while bacnet_container.status != "running":
-        if time.time() > error_time:
-            raise RuntimeError("Bacnet_device container timeout during fixture setup")
-        time.sleep(0.1)
-        bacnet_container.reload()
-
-    yield bacnet_container
-
-    print("Teardown for bacnet device on Docker")
-
-    bacnet_container.remove(force=True)
-    client.images.remove(image_name)
-    bacnet_network.remove()

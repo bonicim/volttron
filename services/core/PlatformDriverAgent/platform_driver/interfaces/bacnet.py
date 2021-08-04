@@ -105,7 +105,6 @@ class Interface(BaseInterface):
         try:
             self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address, self.device_id).get(timeout=self.timeout)
             pinged = True
-            _log.info(f"This is pinged: {pinged}")
         except errors.Unreachable:
             _log.warning("Unable to reach BACnet proxy.")
 
@@ -157,6 +156,7 @@ class Interface(BaseInterface):
                                               register.instance_number,
                                               register.property,
                                               register.index]
+
         while True:
             try:
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
@@ -170,10 +170,6 @@ class Interface(BaseInterface):
                     self.register_count_divisor += 1
                     self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
                     _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
-                    continue
-                elif e.message.endswith("rejected the request: 9") and self.use_read_multiple:
-                    _log.info("Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false")
-                    self.use_read_multiple = False
                     continue
                 else:
                     raise
