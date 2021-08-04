@@ -83,9 +83,9 @@ def main():
 
     # the objectIdentifier's object instance (i.e. second value in tuple) should match the value in the corresponding Index column of the BACnet Driver's registry config
     test_av = AnalogOutputObject(
-        objectIdentifier=("analogOutput", COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID),
+        objectIdentifier=("analogInput", COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID),
         objectName="Building/FCB.Local Application.CLG-O",
-        presentValue=1.0,
+        presentValue="active",
         statusFlags=[0, 0, 0, 0],
     )
     _log.debug("    - test_av: %r", test_av)

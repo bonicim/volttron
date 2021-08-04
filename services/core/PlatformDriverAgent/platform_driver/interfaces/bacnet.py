@@ -157,7 +157,6 @@ class Interface(BaseInterface):
                                               register.instance_number,
                                               register.property,
                                               register.index]
-
         while True:
             try:
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
@@ -177,7 +176,6 @@ class Interface(BaseInterface):
                     self.use_read_multiple = False
                     continue
                 else:
-                    print("XXXXXXXXXXXXXXXXXXX")
                     raise
             except errors.Unreachable:
                 # If the Proxy is not running bail.

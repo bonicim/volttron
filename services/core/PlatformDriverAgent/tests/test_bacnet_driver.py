@@ -1,11 +1,11 @@
 import logging
-import os
-import time
 import pytest
 import gevent
 import math
 import socket
 import docker
+import time
+import os
 
 from mock import MagicMock
 from volttron.platform.agent.known_identities import (
@@ -26,116 +26,44 @@ logger = logging.getLogger(__name__)
 
 BACNET_DEVICE_TOPIC = "devices/bacnet"
 
-# def test_foo(bacnet_device, bacnet_proxy_agent)
+
+def test_scrape_all_should_succeed(bacnet_test_agent):
+    register_values = [
+        "3820a/Field Bus.3820A CHILLER.AHU-COIL-CHWR-T",
+        "3820a/Field Bus.3820A CHILLER.CHW-FLOW"
+    ]
+    actual_values = bacnet_test_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
+    logger.info(f"Result of scrape_all: {actual_values}")
+
+    for register in register_values:
+        assert register in actual_values
 
 
-def test_set_and_get(
-    bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent
-):
-    register_values = {
-        "CoolingValveOutputCommand": 42.42,
-        "GeneralExhaustFanCommand": 1,
-    }
-    for k, v in register_values.items():
-        logger.info(f"Setting and getting point: {k} with value: {v}")
-        bacnet_test_agent.vip.rpc.call(
-            PLATFORM_DRIVER, "set_point", "bacnet", k, v
-        ).get(timeout=10)
+def test_get_point_should_succeed(bacnet_test_agent):
+    register_values = [
+        "3820a/Field Bus.3820A CHILLER.AHU-COIL-CHWR-T",
+        "3820a/Field Bus.3820A CHILLER.CHW-FLOW"
+    ]
+    for register in register_values:
         async_res = bacnet_test_agent.vip.rpc.call(
-            PLATFORM_DRIVER, "get_point", "bacnet", k
+            PLATFORM_DRIVER, "get_point", "bacnet", register
         )
-        updated_v = async_res.get()
-        logger.info(f"Updated value: {updated_v}")
+        value = async_res.get()
+        logger.info(f"Value for point {register}: {value}")
+        assert isinstance(value, float)
 
-        if isinstance(updated_v, float):
-            assert math.isclose(v, updated_v, rel_tol=0.05)
-        else:
-            assert updated_v == v
-
-
-@pytest.mark.skip(reason="error: revert_all not implemented?")
-def test_revert_all(bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent):
-    cooling_valve = "CoolingValveOutputCommand"
-    general_exhaust = "GeneralExhaustFanCommand"
-    register_values_default = {cooling_valve: 0.0, general_exhaust: 0}
-    register_values_updated = {cooling_valve: 42.42, general_exhaust: 1}
-
-    # change the points from the initial to new values
-    for k, v in register_values_updated.items():
-        logger.info(f"Setting and getting point: {k} with value: {v}")
-        bacnet_test_agent.vip.rpc.call(
-            PLATFORM_DRIVER, "set_point", "bacnet", k, v
-        ).get(timeout=10)
-        async_res = bacnet_test_agent.vip.rpc.call(
-            PLATFORM_DRIVER, "get_point", "bacnet", k
-        )
-        updated_v = async_res.get()
-        logger.info(f"Updated value: {updated_v}")
-
-        if isinstance(updated_v, float):
-            assert math.isclose(v, updated_v, rel_tol=0.05)
-        else:
-            assert updated_v == v
-
-    # revert all the changed points
-    bacnet_test_agent.vip.rpc.call(PLATFORM_DRIVER, "revert_all", "bacnet").get(
-        timeout=10
-    )
-    for k, default_v in register_values_default:
-        async_res = bacnet_test_agent.vip.rpc.call(
-            PLATFORM_DRIVER, "get_point", "bacnet", k
-        )
-        reverted_v = async_res.get()
-        logger.info(f"Updated value:{reverted_v}")
-        assert reverted_v == default_v
-
-
-# TODO: add test for "scrape_all"
-def test_scrape_all(
-    bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent
-):
-    # register_values = {
-    #     "CoolingValveOutputCommand": 42.42,
-    #     "GeneralExhaustFanCommand": 1,
-    # }
-    res = bacnet_test_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
-    print(res)
-    # for k, v in register_values.items():
-    #     logger.info(f"Setting and getting point: {k} with value: {v}")
-    #     bacnet_test_agent.vip.rpc.call(
-    #         PLATFORM_DRIVER, "set_point", "bacnet", k, v
-    #     ).get(timeout=10)
-    #     async_res = bacnet_test_agent.vip.rpc.call(
-    #         PLATFORM_DRIVER, "get_point", "bacnet", k
-    #     )
-    #     updated_v = async_res.get()
-    #     logger.info(f"Updated value: {updated_v}")
-    #
-    #     if isinstance(updated_v, float):
-    #         assert math.isclose(v, updated_v, rel_tol=0.05)
-    #     else:
-    #         assert updated_v == v
-    #
-
-# TODO: add another test on COV
-# have a COV flag column on registry config and set to true
-
-
-def test_fod(bacnet_device):
-    time.sleep(60000)
 
 @pytest.fixture(scope="module")
 def bacnet_proxy_agent(volttron_instance):
     device_address = socket.gethostbyname(socket.gethostname() + ".local")
-    print(f"this is IT: {device_address}")
-    exit(0)
+    print(f"Device address for proxy agent for testing: {device_address}")
     bacnet_proxy_agent_config = {
         "device_address": device_address,
         # below are optional; values are set to show configuration options; values use the default values
         "max_apdu_length": 1024,
         "object_id": 599,
         "object_name": "Volttron BACnet driver",
-        "vendor_id": 15,
+        "vendor_id": 5,
         "segmentation_supported": "segmentedBoth",
     }
     bacnet_proxy_agent_uuid = volttron_instance.install_agent(
@@ -153,7 +81,7 @@ def bacnet_proxy_agent(volttron_instance):
 
 
 @pytest.fixture(scope="module")
-def bacnet_test_agent(volttron_instance):
+def bacnet_test_agent(bacnet_proxy_agent, config_store, volttron_instance):
     test_agent = volttron_instance.build_agent(identity="test-agent")
 
     # create a mock callback to use with a subscription to the driver's publish publishes
@@ -169,22 +97,6 @@ def bacnet_test_agent(volttron_instance):
     # give the test agent the capability to modify the platform_driver's config store
     capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
-
-    driver_config = {
-        "driver_config": {"device_address": BACNET_DEVICE_IP_ADDR, "device_id": 599},
-        "driver_type": "bacnet",
-        "registry_config": "config://bacnet.csv",
-        "timezone": "US/Pacific",
-        "interval": 15,
-    }
-
-    test_agent.vip.rpc.call(
-        CONFIGURATION_STORE,
-        "manage_store",
-        PLATFORM_DRIVER,
-        BACNET_DEVICE_TOPIC,
-        driver_config,
-    ).get(timeout=3)
 
     # A sleep was required here to get the platform to consistently add the edit config store capability
     gevent.sleep(1)
@@ -222,20 +134,38 @@ def config_store_connection(volttron_instance):
     connection.kill()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def config_store(config_store_connection):
-    # store the BACnet registry
-    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
-        Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
-        Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
+    registry_config = "bacnet_test.csv"
+    registry_string = f"""Reference Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Write Priority,Notes
+        3820a/Field Bus.3820A CHILLER.AHU-COIL-CHWR-T,3820a/Field Bus.3820A CHILLER.AHU-COIL-CHWR-T,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000741,,Primary CHW Return Temp
+        3820a/Field Bus.3820A CHILLER.CHW-FLOW,3820a/Field Bus.3820A CHILLER.CHW-FLOW,usGallonsPerMinute,-50.00 to 250.00,analogInput,presentValue,FALSE,3000744,,Chiller 1 CHW Flow"""
 
-    # the associated bacnet driver config that uses this registry is stored by the bacnet_test_agent fixture
+    # registry config
     config_store_connection.call(
         "manage_store",
         PLATFORM_DRIVER,
-        "bacnet.csv",
+        registry_config,
         registry_string,
         config_type="csv",
+    )
+
+    # driver config
+    # this connects to a real BACnet device located at PNNL campus in Richland
+    driver_config = {
+        "driver_config": {"device_address": "130.20.24.157",
+                          "device_id": 506892},
+        "driver_type": "bacnet",
+        "registry_config": f"config://{registry_config}",
+        "timezone": "US/Pacific",
+        "interval": 15,
+    }
+
+    config_store_connection.call(
+        "manage_store",
+        PLATFORM_DRIVER,
+        BACNET_DEVICE_TOPIC,
+        driver_config,
     )
 
     yield config_store_connection
@@ -245,6 +175,12 @@ def config_store(config_store_connection):
     gevent.sleep(0.1)
 
 
+def test_docker(bacnet_device):
+    print("Done with docker setup")
+    time.sleep(600)
+
+
+# Docker container hosting a BACnet device, in progress
 @pytest.fixture()
 def bacnet_device():
     client = docker.from_env()
