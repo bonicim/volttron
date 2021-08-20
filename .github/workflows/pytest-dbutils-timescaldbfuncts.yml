@@ -37,7 +37,7 @@ jobs:
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v3
+        uses: volttron/volttron-build-action@v2
         timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
@@ -46,10 +46,13 @@ jobs:
             test_output_suffix: ${{ env.TEST_FILE }}
 
 #       Archive the results from the pytest to storage.
+      - name: Create output suffix
+        run: |
+            echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
       - name: Archive test results
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: pytest-report
           # should match test-<test_output_suffix>- ...
-          path: output/test-${{ env.TEST_FILE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/test-${{ env.OUTPUT_SUFFIX }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
