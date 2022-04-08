@@ -44,7 +44,7 @@ def test_update_meta_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     id = sqlfuncts.insert_topic("foobar")
 
-    if historian_version == "<4.0.0":
+    if historian_version == ">4.0.0":
         sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
 
     assert sqlfuncts.update_meta(id, {"units": "count"})
