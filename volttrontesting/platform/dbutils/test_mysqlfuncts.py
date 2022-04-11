@@ -121,6 +121,8 @@ def test_insert_meta_query_should_succeed(get_container_func):
     topic_id = "44"
     metadata = "foobar44"
     expected_data = (44, '"foobar44"')
+    print(f"current historian version is {historian_version}")
+    print(f"metadata table is {sqlfuncts.meta_table}")
     res = sqlfuncts.insert_meta(topic_id, metadata)
     assert res is True
     assert get_data_in_table(connection_port, "meta")[0] == expected_data
