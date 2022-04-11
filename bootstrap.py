@@ -38,7 +38,7 @@
 
 """bootstrap - Prepare a VOLTTRON virtual environment.
 
-Bootstrapping is broken into two stages. The first stage should only be
+Bootstrapping is done in two stages. The first stage should only be
 invoked once per virtual environment. It downloads virtualenv and
 creates a virtual Python environment in the virtual environment
 directory (defaults to a subdirectory named env in the same directory as
@@ -72,20 +72,22 @@ may be used. Look here for more information on configuring pip:
 import argparse
 import errno
 import logging
+import os
+import shutil
 import subprocess
 import sys
+import traceback
 from urllib.request import urlopen
 
-import os
-import traceback
-
 from requirements import extras_require, option_requirements
+
 
 _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
 default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
-rabbitmq_server = 'rabbitmq_server-3.7.7'
+rmq_version = "3.9.7"
+rabbitmq_server = f"rabbitmq_server-{rmq_version}"
 
 
 def shescape(args):
@@ -95,7 +97,6 @@ def shescape(args):
 
 
 def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
-    import shutil
     args = [sys.executable, "-m", "venv", dest, "--prompt", prompt]
 
     complete = subprocess.run(args, stdout=subprocess.PIPE)
@@ -171,7 +172,7 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
 def install_rabbit(rmq_install_dir):
     # Install gevent friendly pika
-    pip('install', ['gevent-pika==0.3'], False, True, offline=False)
+    pip('install', ['pika==1.2.0'], False, True, offline=False)
     # try:
     process = subprocess.Popen(["which", "erl"], stderr=subprocess.PIPE,  stdout=subprocess.PIPE)
     (output, error) = process.communicate()
@@ -202,7 +203,7 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        url = f"https://github.com/rabbitmq/rabbitmq-server/releases/download/v{rmq_version}/rabbitmq-server-generic-unix-{rmq_version}.tar.xz"
         f = urlopen(url)
         data = f.read()
         filename = "rabbitmq-server.download.tar.xz"
