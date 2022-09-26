@@ -66,7 +66,6 @@ class _subscriber_agent(Agent):
         self.publish_results.add(topic)
 
 
-# def subscriber_agent(request, volttron_instance):
 @pytest.fixture(scope="module")
 def subscriber_agent(request, volttron_instance):
 
