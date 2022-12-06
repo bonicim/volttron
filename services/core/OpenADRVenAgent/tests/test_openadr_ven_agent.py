@@ -30,7 +30,11 @@ async def test_handle_event_should_return_optIn(mock_openadr_ven):
 
 @pytest.fixture
 def mock_openadr_ven():
-    config_path = str(Path('config_test.json').absolute())
+    p = Path(__file__)
+    # config_path = str(Path.joinpath(p.absolute(), 'config_test.json'))
+    # config_path = str(Path.joinpath(p.cwd(), 'config_test.json'))
+    config_path = '/home/developer/volttron-instance-monolith/volttron/services/core/OpenADRVenAgent/tests/config_test.json'
+    print(f"config_path {config_path}")
     OpenADRVenAgent.__bases__ = (AgentMock.imitate(Agent, OpenADRVenAgent(config_path)),)
 
     yield OpenADRVenAgent(config_path, fake_ven_client=FakeOpenADRClient())
