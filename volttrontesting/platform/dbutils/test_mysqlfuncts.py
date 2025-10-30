@@ -451,7 +451,7 @@ def wait_for_connection(container):
     response = None
     while time() - start_time < ALLOW_CONNECTION_TIME:
         command = (
-            f'mysqlshow --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE}'
+            f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE}'
         )
         response = container.exec_run(command, tty=True)
         exit_code, output = response

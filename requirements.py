@@ -30,23 +30,24 @@
 # wheel version 0.31 has removed metadata.json file
 # https://github.com/pypa/wheel/issues/195
 # so sticking to 0.30 for now. Could upgrade to wheel 0.31 with code changes
-option_requirements = [('pip==24.0', []), ('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
+option_requirements = [('pip==24.0', []), ('wheel==0.30', []), ('pyzmq==26.0.2', ['--zmq=bundled'])]
 
 
-install_requires = ['gevent==21.12.0',
-                    'grequests==0.6.0',
-                    'requests==2.23.0',
+install_requires = ['gevent==24.2.1',
+                    'grequests==0.7.0',
+                    'requests==2.31.0',
                     'idna<3,>=2.5',
                     'ply==3.11',
                     'psutil==5.9.1',
                     'python-dateutil==2.8.2',
                     'pytz==2022.1',
-                    'PyYAML==6.0',
-                    'setuptools>=40.0.0',
+                    'PyYAML==6.0.3',
+                    'setuptools>=40.0.0,<=70.0.0',
                     # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
                     'tzlocal==2.1',
                     #'pyOpenSSL==19.0.0',
                     'cryptography==37.0.4',
+                    'watchdog<5.0',
                     'watchdog-gevent==0.1.1',
                     'deprecated==1.2.14']
 
@@ -64,7 +65,7 @@ extras_require = {'crate': ['crate==0.27.1'],
                                     'sphinxcontrib-mermaid'],
                   'drivers': ['pymodbus==2.5.3',
                               'bacpypes==0.16.7',
-                              'modbus-tk==1.1.2',
+                              'modbus-tk==1.1.5',
                               'pyserial==3.5'],
                   'influxdb': ['influxdb==5.3.1'],
                   'market': ['numpy==1.23.1', 'transitions==0.8.11'],
@@ -83,7 +84,7 @@ extras_require = {'crate': ['crate==0.27.1'],
                               'pytest-rerunfailures==10.2',
                               'websocket-client==1.2.2',
                               'deepdiff==5.8.1',
-                              'docker==5.0.3',
+                              'docker==7.1.0',
                               'pytest_asyncio==0.19.0',
                               'pytest_timeout==2.1.0'],
                   'weather': ['Pint==0.19.2'],
@@ -94,6 +95,6 @@ extras_require = {'crate': ['crate==0.27.1'],
                           'passlib==1.7.4',
                           'argon2-cffi==21.3.0',
                           'Werkzeug==2.2.1',
-                          'treelib==1.6.1'],
+                          'treelib==1.8.0'],
                   'dnp3': ['dnp3-python==0.2.3b3'],
                   'openadr': ['openleadr==0.5.30']}
